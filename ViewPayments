@@ -61,10 +61,10 @@ with parcelas as (
 				))
 		else ( 
 			 aplicados."ValorDepositado" * (aplicados."ValorMovimento" / 		
-										case (select sum(aux."ValorPagamento") from pagamentos aux where aux."MovimentoPagamento" = aplicados."MovimentoPagamento" and aux."NumeroDocumento" = aplicados."NumeroDocumento" and aux."Parcela" = aplicados."Parcela") 
+										case (select sum(aux."ValorPagamento") from pagamentos aux where aux."MovimentoPagamento" = aplicados."MovimentoPagamento" and aux."NumeroDocumento" = aplicados."NumeroDocumento") 
 										when 0
 										then aplicados."ValorPagamento"
-										else (select sum(aux."ValorPagamento") from pagamentos aux where aux."MovimentoPagamento" = aplicados."MovimentoPagamento" and aux."NumeroDocumento" = aplicados."NumeroDocumento" and aux."Parcela" = aplicados."Parcela")  * "SinalReconciliacao"
+										else (select sum(aux."ValorPagamento") from pagamentos aux where aux."MovimentoPagamento" = aplicados."MovimentoPagamento" and aux."NumeroDocumento" = aplicados."NumeroDocumento")  * "SinalReconciliacao"
 	   								   	end
 	   								   )
 	  		 ) 

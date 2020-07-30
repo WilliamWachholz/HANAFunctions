@@ -92,4 +92,4 @@ select  "DocEntry",
 	 "NumeroContaReceber", 
 	 "ChaveMovimento"	
 from pagamentosAplicados
-order by "NumeroDocumento", "Parcela", "ChaveMovimento"	
+order by "NumeroDocumento", "Parcela", "MovimentoPagamento", "LinhaMovimento"

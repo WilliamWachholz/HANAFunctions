@@ -22,7 +22,7 @@ with parcelas as (
 	select parcelas.*,
 		   ITR1."ReconSum" as "ValorReconciliado",
 		   case ITR1."IsCredit" when 'D' then 0 else 1 end as "TipoReconciliacao",
-		   OITR."ReconDate" as "DataReconciliacao",
+		   OITR."CreateDate" as "DataReconciliacao",
 		   OITR."Total" as "TotalReconciliacao",
 		   OITR."ReconNum",
 		   case OITR."Canceled" when 'C' then -1 else 1 end as "SinalReconciliacao"

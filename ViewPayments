@@ -1,43 +1,47 @@
+--favor não remover esta linha - william.wachholz@gmail.com | https://br.linkedin.com/in/williamwachholz | https://github.com/WilliamWachholz
+--please do not remove this line - william.wachholz@gmail.com | https://br.linkedin.com/in/williamwachholz | https://github.com/WilliamWachholz
+--bitte entfernen Sie diese Zeile nicht  - william.wachholz@gmail.com | https://br.linkedin.com/in/williamwachholz | https://github.com/WilliamWachholz
 with parcelas as (
-	select  OINV."CardCode" as "CodigoCliente",
+	select  OINV."DocEntry" AS "DocEntry",
+		    OINV."CardCode" as "CodigoCliente",
 			OINV."CardName" as "NomeCliente",
-			OINV."DocNum" as "NumeroDocumento",
+			OINV."DocDate" as "DataDocumento",			
+			OINV."DocNum" as "NumeroDocumento",			
 			JDT1."SourceLine" as "Parcela",
 			JDT1."Debit" as "ValorParcela",
 			JDT1."TransId",
 			JDT1."Line_ID"
 	from JDT1
 	inner join OINV ON (OINV."TransId" = JDT1."TransId")
-	where OINV."DocNum" = 3720
+	where 1=1
+	--and OINV."CardCode" = 'C00000'
+	--and OINV."DocNum" = 0
 	and JDT1."SourceLine" is not null
 )
-
 ,reconciliacoes as (
 	select parcelas.*,
 		   ITR1."ReconSum" as "ValorReconciliado",
 		   case ITR1."IsCredit" when 'D' then 0 else 1 end as "TipoReconciliacao",
 		   OITR."ReconDate" as "DataReconciliacao",
 		   OITR."Total" as "TotalReconciliacao",
-		   OITR."ReconNum"
+		   OITR."ReconNum",
+		   case OITR."Canceled" when 'C' then -1 else 1 end as "SinalReconciliacao"
 	from parcelas
 	inner join ITR1 on (ITR1."TransId" = parcelas."TransId" and ITR1."TransRowId" = parcelas."Line_ID")
 	inner join OITR on (OITR."ReconNum" = ITR1."ReconNum")
 )
-
 ,pagamentos as (
-	select reconciliacoes.*,		   
-		   case reconciliacoes."TipoReconciliacao" when 0 then JDT1."Debit" else JDT1."Credit" end as "ValorPagamento", 
-		   case OACT."Finanse" 
-		   when 'Y' 
-		   then case reconciliacoes."TipoReconciliacao" when 0 then (JDT1."BalDueDeb") else JDT1."BalDueCred" end 
-		   else case reconciliacoes."TipoReconciliacao" when 0 then (JDT1."Debit" - JDT1."BalDueDeb") else (JDT1."Credit" - JDT1."BalDueCred") end
-		   end as "ValorDepositado", 
-		   JDT1."Ref3Line" as "DetalhePagamento",
-		   JDT1."TransId" as "GrupoPagamento",
-		   ITR1."ReconSum" as "ValorGrupo",
+	select reconciliacoes.*,		
+		   JDT1."Ref3Line" as "ObservacaoPagamento",   
 		   OACT."AcctCode" || ' - ' || OACT."AcctName" as "ContaPagamento",
-   		   JDT1."Line_ID" as "LinhaPagamento",
-   		   ORCT."DocNum" as "NumeroPagamento"
+		  "SinalReconciliacao" * JDT1."Debit" as "ValorPagamento", 
+		  "SinalReconciliacao" * case OACT."Finanse" when 'Y' then JDT1."BalDueDeb" else JDT1."Debit" - JDT1."BalDueDeb" end as "ValorDepositado", 
+		   ITR1."ReconSum" as "ValorMovimento",
+		   JDT1."TransId" as "MovimentoPagamento",
+		   JDT1."Line_ID" as "LinhaMovimento",	
+		   coalesce((select max("ReconDate") from OITR where exists (select aux."LineSeq" from ITR1 aux where aux."TransId" = JDT1."TransId" and aux."TransRowId" = JDT1."Line_ID" and aux."ReconNum" = OITR."ReconNum")), "DataReconciliacao") as "DataMovimento",	   
+   		   ORCT."DocNum" as "NumeroContaReceber",
+		   lpad(ITR1."ReconNum" , 7, '0') || lpad(JDT1."TransId" , 7, '0') || lpad(JDT1."Line_ID" , 3, '0')	|| case "SinalReconciliacao" when -1 then 'E' else 'N' end as "ChaveMovimento"  		   
 	from ORCT
 	inner join JDT1 on (JDT1."TransId" = ORCT."TransId")
 	inner join ITR1 on (ITR1."TransId" = JDT1."TransId" and ITR1."TransRowId" <> JDT1."Line_ID")
@@ -45,24 +49,47 @@ with parcelas as (
 	inner join reconciliacoes on (reconciliacoes."ReconNum" = ITR1."ReconNum")
 	where 1 = 1
 	and JDT1."SourceLine" <> -99 and JDT1."SourceLine" <> -13
-	and case reconciliacoes."TipoReconciliacao" when 0 then JDT1."Debit" else JDT1."Credit" end > 0
+	and JDT1."Debit" > 0
 )	
 
-,pagamentosAjustados as (
-	select ajustados.*,
-		 case 
-		 when (select sum(aux."ValorGrupo") from pagamentos aux where aux."GrupoPagamento" = ajustados."GrupoPagamento") = 0 
-		 then 0
-		 when ajustados."ValorGrupo" > ajustados."ValorReconciliado" and ajustados."ValorDepositado" > 0 
-		 --then ajustados."ValorReconciliado"	/ (select count(aux."LinhaPagamento") from pagamentos aux where aux."GrupoPagamento" = ajustados."GrupoPagamento" and aux."LinhaPagamento" = ajustados."LinhaPagamento") 
-		 then (ajustados."ValorReconciliado" / ajustados."TotalReconciliacao") * ajustados."ValorDepositado"
-		 else ajustados."ValorDepositado" * ( ajustados."ValorGrupo" / 
-		   									(select sum(aux."ValorPagamento") from pagamentos aux where aux."GrupoPagamento" = ajustados."GrupoPagamento") 
-		   								   )
-		 end as "ValorAjustado"
-	from pagamentos ajustados
+,pagamentosAplicados as (
+	select aplicados.*,
+		case when "SinalReconciliacao" * aplicados."ValorMovimento" > "SinalReconciliacao" * aplicados."ValorReconciliado" and "SinalReconciliacao" * aplicados."ValorDepositado" > 0 
+		then "SinalReconciliacao" * ( 			
+				(
+					aplicados."ValorDepositado" * (aplicados."ValorReconciliado" / aplicados."TotalReconciliacao") 
+				))
+		else ( 
+			 aplicados."ValorDepositado" * (aplicados."ValorMovimento" / 		
+										case (select sum(aux."ValorPagamento") from pagamentos aux where aux."MovimentoPagamento" = aplicados."MovimentoPagamento") 
+										when 0
+										then aplicados."ValorPagamento"
+										else (select sum(aux."ValorPagamento") from pagamentos aux where aux."MovimentoPagamento" = aplicados."MovimentoPagamento")  * "SinalReconciliacao"
+	   								   	end
+	   								   )
+	  		 ) 
+	   end as "ValorAplicado"
+						
+	from pagamentos aplicados
 )
 
-select * 
-from pagamentosAjustados
-order by "NumeroDocumento", "Parcela", "GrupoPagamento", "LinhaPagamento"
+select  "DocEntry",
+	 "CodigoCliente",
+	 "NomeCliente",
+	 "DataDocumento",
+	 "NumeroDocumento",
+	 "Parcela",
+	 "ValorParcela",
+	 "ObservacaoPagamento",
+	 "ContaPagamento",
+	 "ValorPagamento",
+	 "ValorDepositado",
+	 "ValorMovimento",
+	 "ValorAplicado",
+	 "MovimentoPagamento",
+	 "LinhaMovimento",
+	 "DataMovimento",
+	 "NumeroContaReceber", 
+	 "ChaveMovimento"	
+from pagamentosAplicados
+order by "NumeroDocumento", "Parcela", "ChaveMovimento"	

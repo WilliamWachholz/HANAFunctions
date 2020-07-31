@@ -1,6 +1,7 @@
 --favor não remover esta linha - william.wachholz@gmail.com | https://br.linkedin.com/in/williamwachholz | https://github.com/WilliamWachholz
 --please do not remove this line - william.wachholz@gmail.com | https://br.linkedin.com/in/williamwachholz | https://github.com/WilliamWachholz
 --bitte entfernen Sie diese Zeile nicht  - william.wachholz@gmail.com | https://br.linkedin.com/in/williamwachholz | https://github.com/WilliamWachholz
+
 with parcelas as (
 	select  OINV."DocEntry" AS "DocEntry",
 		    OINV."CardCode" as "CodigoCliente",

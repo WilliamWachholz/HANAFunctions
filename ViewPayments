@@ -40,7 +40,7 @@ with parcelas as (
 		   ITR1."ReconSum" as "ValorMovimento",
 		   JDT1."TransId" as "MovimentoPagamento",
 		   JDT1."Line_ID" as "LinhaMovimento",	
-		   coalesce((select max("ReconDate") from OITR where exists (select aux."LineSeq" from ITR1 aux where aux."TransId" = JDT1."TransId" and aux."TransRowId" = JDT1."Line_ID" and aux."ReconNum" = OITR."ReconNum")), "DataReconciliacao") as "DataMovimento",	   
+		   coalesce((select max("CreateDate") from OITR where exists (select aux."LineSeq" from ITR1 aux where aux."TransId" = JDT1."TransId" and aux."TransRowId" = JDT1."Line_ID" and aux."ReconNum" = OITR."ReconNum")), "DataReconciliacao") as "DataMovimento",	   
    		   ORCT."DocNum" as "NumeroContaReceber",
 		   lpad(ITR1."ReconNum" , 7, '0') || lpad(JDT1."TransId" , 7, '0') || lpad(JDT1."Line_ID" , 3, '0')	|| case "SinalReconciliacao" when -1 then 'E' else 'N' end as "ChaveMovimento"  		   
 	from ORCT
